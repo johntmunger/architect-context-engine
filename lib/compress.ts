@@ -1,5 +1,5 @@
-import Anthropic from "@anthropic-ai/sdk";
 import type { CrawledFile } from "./crawl";
+import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
 
 const anthropic = new Anthropic({
@@ -18,7 +18,7 @@ export async function compressProject(files: CrawledFile[]): Promise<string> {
 
   const response = await anthropic.messages.create({
     // We'll make model selection configurable shortly.
-    model: "claude-haiku-4-5",
+    model: "claude-haiku-4-5-20251001",
     max_tokens: 4000,
 
     system: `
