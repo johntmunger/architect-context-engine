@@ -2,7 +2,7 @@
 node_modules/
 dist/
 .DS_Store
-docs/
 architect-raw-crawl.txt
 project-summary.md
 project-summary-*.md
+LATEST_RESPONSE.md

@@ -119,6 +119,7 @@ Architect excludes its own generated artifacts from subsequent crawls:
 
 - `architect-raw-crawl.txt`
 - `project-summary.md`
+- `LATEST_RESPONSE.md`
 
 This prevents generated context from feeding back into the next architectural analysis.
 
@@ -171,25 +172,70 @@ The output limit is intentionally a ceiling rather than a target. Different repo
 
 ## Usage
 
-From a repository:
+Architect is invoked globally from the repository being analyzed.
+
+### Crawl a Repository
+
+From the target repository:
 
 ```bash
 architect crawl
 ```
 
-Architect runs the repository crawl and semantic compression pipeline.
+The crawl command:
 
-The current CLI entry point supports:
+1. identifies repository content within the filesystem boundaries
+2. collects supported text files
+3. constructs a bounded raw corpus
+4. sends the corpus to the semantic compression model
+5. writes the resulting architectural context to `project-summary.md`
+
+### Start Interactive Reasoning
+
+After a successful crawl:
+
+```bash
+architect chat
+```
+
+The chat command loads `project-summary.md` as the project's architectural context and opens an interactive terminal conversation.
+
+Type questions or requests directly into the terminal.
+
+To close the session:
 
 ```text
+exit
+```
+
+If `project-summary.md` does not exist, Architect will instruct you to run:
+
+```bash
 architect crawl
 ```
 
+first.
+
 ---
+
+## Interactive Chat
+
+The chat layer is deliberately separate from the crawl and compression stages.
+
+````text
+project-summary.md
+        ↓
+   cached context
+        ↓
+   Claude Sonnet 4.6
+        ↓
+   Architect response
+        ↓
+LATEST_RESPONSE.md
 
 ## Output
 
-Architect currently produces two files in the target repository.
+Architect produces three generated artifacts in the target repository.
 
 ### `architect-raw-crawl.txt`
 
@@ -210,9 +256,19 @@ The semantically compressed architectural representation produced by the compres
 
 This is the primary reusable architectural artifact.
 
-It is intended to provide downstream systems with a compact representation of how the repository works without requiring the entire repository to be supplied as context.
+It provides the interactive chat layer with a compact representation of how the repository works without requiring the entire repository to be supplied as context.
 
-This file is also generated output and is excluded from future crawls.
+This file is generated output and is excluded from future crawls.
+
+### `LATEST_RESPONSE.md`
+
+The most recent response produced by `architect chat`.
+
+This provides a persistent artifact of the latest reasoning result that can be opened or previewed independently of the terminal session.
+
+The file is overwritten with each successful chat response.
+
+It is generated output and is excluded from future crawls and version control.
 
 ---
 
@@ -222,7 +278,7 @@ Install dependencies:
 
 ```bash
 npm install
-```
+````
 
 Build the TypeScript project:
 
@@ -261,8 +317,7 @@ architect/
 │   ├── chat.ts
 │   ├── compress.ts
 │   ├── config.ts
-│   ├── crawl.ts
-│   └── watch.ts
+│   └── crawl.ts
 ├── dist/
 ├── docs/
 ├── package.json
@@ -292,10 +347,6 @@ Runtime configuration and environment handling.
 **`lib/chat.ts`**
 
 Chat/reasoning functionality built around generated project context.
-
-**`lib/watch.ts`**
-
-Repository watch functionality for triggering project processing as files change.
 
 ---
 
