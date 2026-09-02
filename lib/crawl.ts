@@ -1,5 +1,4 @@
 import { compressProject } from "./compress";
-
 import fs from "fs";
 import path from "path";
 
@@ -32,8 +31,13 @@ const TEXT_EXTENSIONS = new Set([
 ]);
 
 const MAX_FILE_SIZE = 250_000;
+const MAX_DIRECTORY_CONTENT_SIZE = 100_000;
 
-const IGNORE_FILES = new Set([".DS_Store"]);
+const IGNORE_FILES = new Set([
+  ".DS_Store",
+  "architect-raw-crawl.txt",
+  "project-summary.md",
+]);
 
 function walkDirectory(dir: string, root: string): string[] {
   const results: string[] = [];
@@ -46,6 +50,12 @@ function walkDirectory(dir: string, root: string): string[] {
     const relativePath = path.relative(root, fullPath);
 
     if (entry.isDirectory()) {
+      const directorySize = getDirectoryContentSize(fullPath);
+
+      if (directorySize > MAX_DIRECTORY_CONTENT_SIZE) {
+        continue;
+      }
+
       results.push(...walkDirectory(fullPath, root));
       continue;
     }
@@ -54,6 +64,29 @@ function walkDirectory(dir: string, root: string): string[] {
   }
 
   return results;
+}
+
+function getDirectoryContentSize(dir: string): number {
+  let total = 0;
+
+  for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+    if (IGNORE_DIRS.has(entry.name)) continue;
+    if (IGNORE_FILES.has(entry.name)) continue;
+
+    const fullPath = path.join(dir, entry.name);
+
+    if (entry.isDirectory()) {
+      total += getDirectoryContentSize(fullPath);
+    } else {
+      total += fs.statSync(fullPath).size;
+    }
+
+    if (total > MAX_DIRECTORY_CONTENT_SIZE) {
+      return total;
+    }
+  }
+
+  return total;
 }
 
 function readCrawledFiles(files: string[], root: string): CrawledFile[] {
@@ -101,10 +134,7 @@ export async function runCrawl() {
 
   console.log(`🧮 Estimated tokens: ${estimatedTokens}`);
 
-  const rawCorpusPath = path.join(
-    projectRoot,
-    "architect-raw-crawl.txt",
-  );
+  const rawCorpusPath = path.join(projectRoot, "architect-raw-crawl.txt");
 
   fs.writeFileSync(rawCorpusPath, corpus);
 
@@ -112,10 +142,7 @@ export async function runCrawl() {
 
   const semanticSummary = await compressProject(crawledFiles);
 
-  const summaryPath = path.join(
-    projectRoot,
-    "project-summary.md",
-  );
+  const summaryPath = path.join(projectRoot, "project-summary.md");
 
   fs.writeFileSync(summaryPath, semanticSummary);
 
