@@ -222,7 +222,7 @@ first.
 
 The chat layer is deliberately separate from the crawl and compression stages.
 
-````text
+```text
 project-summary.md
         ↓
    cached context
@@ -232,6 +232,7 @@ project-summary.md
    Architect response
         ↓
 LATEST_RESPONSE.md
+```
 
 ## Output
 
@@ -278,7 +279,7 @@ Install dependencies:
 
 ```bash
 npm install
-````
+```
 
 Build the TypeScript project:
 
@@ -377,3 +378,20 @@ Architect therefore favors explicit boundaries, evidence-based transformation, a
 The system is designed around a simple principle:
 
 > **Control the information before asking the model to reason about it.**
+
+## Setup
+
+Architect currently uses Anthropic's Claude models for semantic
+compression and interactive reasoning.
+
+1. Clone the repository.
+2. Install dependencies.
+3. Create a `.env` file at the root of the Architect installation.
+4. Add your Anthropic API key:
+
+```env
+ANTHROPIC_API_KEY=your_key_here
+```
+
+If you use a different `.env` location, update the path in
+`lib/config.ts` accordingly.
