@@ -395,3 +395,78 @@ ANTHROPIC_API_KEY=your_key_here
 
 If you use a different `.env` location, update the path in
 `lib/config.ts` accordingly.
+
+---
+
+## Using Architect with Another Repository
+
+Architect is designed to operate **on** a repository without becoming part of
+that repository.
+
+The Architect installation and the target repository can remain completely
+separate. Architect uses the current working directory as the repository being
+analyzed.
+
+### Developer Installation
+
+For a developer working directly from the Architect source repository:
+
+```bash
+git clone <architect-repository>
+cd architect
+npm install
+npm run build
+```
+
+Configure the Architect installation with an Anthropic API key as described in
+[Setup](#setup).
+
+If you want the `architect` command available globally during development, the
+package can be linked from the Architect repository.
+
+From the Architect directory:
+
+```bash
+npm link
+```
+
+The resulting `architect` command can then be run from a target repository:
+
+```bash
+cd ~/Code/my-project
+architect
+```
+
+The target repository does not need to contain Architect source code,
+dependencies, configuration, or a symlink.
+
+### Side-by-Side Without Linking
+
+Architect can also be used directly from a separate, side-by-side directory
+without creating a global link:
+
+```text
+~/Code/
+├── architect/
+└── my-project/
+```
+
+Build Architect normally:
+
+```bash
+cd ~/Code/architect
+npm install
+npm run build
+```
+
+Then invoke its compiled CLI from the target repository:
+
+```bash
+cd ~/Code/my-project
+node ../architect/dist/index.js
+```
+
+Architect remains in its own directory while operating on `my-project`.
+
+**No symlink, dependency installation, or source-code changes are required in
+the target repository.**
