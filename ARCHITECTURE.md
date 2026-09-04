@@ -1,13 +1,32 @@
-# Architect — Architecture Notes
+# Architect — Architecture
 
-This document is a compact technical reference for maintaining, rebuilding, or
-explaining Architect. The public-facing setup and usage instructions live in
-`README.md`.
+Architect is a repository-aware AI architecture assistant built around controlled information boundaries.
 
-## Installation Model
+The public-facing installation and usage instructions live in `README.md`. This document describes the system's architectural model and the boundaries between its major stages.
 
-Architect is maintained as a single development package rather than being
-installed inside every repository it analyzes.
+## System Model
+
+Architect operates externally on a target repository rather than becoming part of that repository.
+
+```text
+Target Repository
+       ↓
+Filesystem Boundary
+       ↓
+Relevant Evidence
+       ↓
+Raw Corpus
+       ↓
+Semantic Compression
+       ↓
+Compressed Project Knowledge
+       ↓
+Interactive Reasoning
+       ↓
+Response Artifact
+```
+
+The target repository and Architect remain separate:
 
 ```text
 ~/Code/
@@ -17,103 +36,185 @@ installed inside every repository it analyzes.
 └── project-c/
 ```
 
-Architect operates on the repository from which it is invoked. The target
-repository is determined by the current working directory:
+The target repository is established by the current working directory:
 
 ```ts
 process.cwd()
 ```
 
-This means Architect can analyze another repository without copying Architect
-source code, dependencies, or configuration into that repository.
+This allows one Architect installation to operate on multiple repositories without copying Architect source code or dependencies into them.
 
-### Global Development Installation
+A global CLI link or a direct side-by-side invocation are implementation mechanisms for maintaining this separation; they are not dependencies of the target repositories.
 
-During development, Architect can be exposed as a global CLI with:
+## Information Flow
 
-```bash
-npm link
-```
-
-The link points to the Architect development package rather than copying it
-into consuming repositories.
-
-Conceptually:
+Architect progressively transforms repository information rather than passing the entire repository directly to a reasoning model.
 
 ```text
-architect
+Repository
     ↓
-global npm link
+Filesystem Boundary
     ↓
-Architect installation
+Relevant Files
     ↓
-dist/index.js
+Raw Corpus
+    ↓
+Semantic Compression
+    ↓
+Architectural Knowledge
+    ↓
+Interactive Reasoning
 ```
 
-A linked installation can then be invoked from another repository:
+Each boundary exists to control the information that crosses into the next stage.
 
-```bash
-cd ~/Code/project-a
-architect
-```
+## Filesystem Boundary
 
-### Side-by-Side Installation
+The crawler establishes the first information boundary.
 
-Global linking is not required.
+It:
 
-Architect can remain completely separate from a target repository:
+- excludes known implementation, build, cache, and version-control directories
+- limits aggregate directory content
+- limits individual file size
+- considers only supported text-oriented file types
+- excludes Architect-generated artifacts
+
+This prevents indiscriminate repository ingestion before semantic processing begins.
+
+The current directory and file boundaries are documented in the README so that the operational limits remain visible to users.
+
+## Evidence Layer
+
+Files that survive the filesystem boundary become repository evidence.
 
 ```text
-~/Code/
-├── architect/
-└── project-a/
+Allowed repository content
+          ↓
+    Bounded raw corpus
 ```
 
-Build Architect:
+`architect-raw-crawl.txt` represents this intermediate evidence layer.
 
-```bash
-cd ~/Code/architect
-npm install
-npm run build
-```
+The artifact is derived from the repository and is excluded from future crawls so that generated evidence cannot become recursive input.
 
-Then invoke the compiled CLI from the target repository:
+## Semantic Compression Boundary
 
-```bash
-cd ~/Code/project-a
-node ../architect/dist/index.js
-```
-
-No source-code changes, dependency installation, or symlink inside the target
-repository are required.
-
-## Node.js Environment
-
-Architect requires Node.js and npm.
-
-A user-owned Node environment such as NVM is useful for development and global
-CLI tooling. NVM manages Node.js versions and keeps the associated npm
-environment under the user's control.
-
-The important distinction is:
+The bounded raw corpus crosses the semantic processing boundary and is supplied to Claude Haiku 4.5.
 
 ```text
-NVM
- ↓
-Node.js
- ↓
-npm
- ↓
-Architect development environment
+Raw Corpus
+    ↓
+Claude Haiku 4.5
+    ↓
+project-summary.md
 ```
 
-This is a development-environment concern, not a requirement that consuming
-repositories use NVM.
+The compression stage is architecture-focused.
 
-## Build / Runtime Boundary
+It preserves project purpose, structure, relationships, flows, interfaces, boundaries, dependencies, constraints, patterns, and important files while deliberately reducing repetitive implementation detail.
 
-Architect is written in TypeScript, but the CLI executes the compiled
-JavaScript runtime.
+The objective is:
+
+> Produce the smallest faithful architectural representation that allows downstream reasoning about the repository.
+
+The output limit is a ceiling rather than a target.
+
+## Reasoning Boundary
+
+Interactive reasoning operates downstream of semantic compression.
+
+```text
+project-summary.md
+        ↓
+   cached context
+        ↓
+ Claude Sonnet 4.6
+        ↓
+ Architect response
+        ↓
+ LATEST_RESPONSE.md
+```
+
+The reasoning model therefore works primarily from compressed architectural knowledge rather than from indiscriminate repository content.
+
+## Prompt Cache and Heartbeat
+
+Interactive chat is designed around reusable context.
+
+The stable project context can be prompt-cached so that subsequent reasoning requests do not repeatedly process the entire architectural representation as new input.
+
+Heartbeat behavior maintains reusable context during an interactive session.
+
+The heartbeat is a cache-maintenance mechanism, not a separate reasoning workflow.
+
+```text
+Cached project context
+        ↓
+Heartbeat / context maintenance
+        ↓
+User request
+        ↓
+Sonnet reasoning
+        ↓
+Response
+```
+
+The purpose is to preserve the reusable context boundary while the interactive session remains active.
+
+## Model Responsibilities
+
+Architect intentionally separates model responsibilities.
+
+```text
+Claude Haiku 4.5
+        │
+        ▼
+Semantic compression
+        │
+        ▼
+project-summary.md
+        │
+        ▼
+Claude Sonnet 4.6
+        │
+        ▼
+Interactive reasoning
+```
+
+Haiku performs bounded semantic reduction.
+
+Sonnet performs downstream interactive reasoning over that reduced representation.
+
+This separation keeps the reasoning model from being used as the initial repository-ingestion mechanism.
+
+## Generated Artifacts
+
+Architect currently produces three important generated artifacts:
+
+| Artifact | Purpose |
+| --- | --- |
+| `architect-raw-crawl.txt` | Bounded raw repository evidence |
+| `project-summary.md` | Compressed architectural knowledge |
+| `LATEST_RESPONSE.md` | Most recent interactive reasoning response |
+
+These artifacts have different lifecycle roles:
+
+```text
+Raw evidence
+    ↓
+Compressed knowledge
+    ↓
+Reasoning response
+```
+
+Generated artifacts are excluded from future crawls where appropriate so that derived information does not become repository evidence.
+
+`LATEST_RESPONSE.md` is also excluded from version control because it represents the current local interaction rather than source material.
+
+## Runtime Boundary
+
+Architect is written in TypeScript, but the CLI executes the compiled JavaScript runtime.
 
 ```text
 TypeScript source
@@ -125,66 +226,54 @@ dist/index.js
 Architect CLI
 ```
 
-The source files in `lib/` are development-time TypeScript.
+The source files under `lib/` define the development implementation.
 
-The `dist/` directory contains the compiled runtime produced by the build.
+The compiled files under `dist/` represent the executable runtime produced by the build.
 
-After source changes:
+The runtime boundary therefore separates development source from the executable CLI.
 
-```bash
-npm run build
-```
+## Component Responsibilities
 
-The executable CLI should therefore be treated as the compiled runtime rather
-than the TypeScript source.
+### `index.ts`
 
-## Repository Context
+CLI entry point and command dispatch.
 
-Architect's installation location and the repository being analyzed are
-separate concerns.
+### `lib/crawl.ts`
+
+Filesystem discovery, crawl boundaries, file filtering, raw corpus construction, and orchestration of semantic compression.
+
+### `lib/compress.ts`
+
+Anthropic integration and architecture-focused semantic compression.
+
+### `lib/config.ts`
+
+Runtime configuration and Anthropic API-key handling.
+
+### `lib/chat.ts`
+
+Interactive reasoning over the generated project context, including reusable cached context and response generation.
+
+## Architectural Principle
+
+Architect treats information management as an architectural concern.
+
+The central question is not simply whether information can cross a boundary.
+
+It is whether that information should cross the boundary.
 
 ```text
-                 Architect
-                    │
-                    ▼
-             compiled CLI
-                    │
-                    ▼
-             process.cwd()
-                    │
-        ┌───────────┴───────────┐
-        ▼                       ▼
-   project-a                project-b
+More Repository Information
+            ↓
+     Boundary Decisions
+            ↓
+   Relevant Evidence
+            ↓
+   Semantic Compression
+            ↓
+  Architectural Knowledge
+            ↓
+     Better Reasoning
 ```
 
-The same Architect installation can therefore operate against different
-repositories without becoming part of them.
-
-## Rebuild Checklist
-
-When rebuilding Architect on another machine:
-
-1. Install Node.js, optionally through NVM.
-2. Clone Architect.
-3. Install dependencies.
-4. Configure the Anthropic API key.
-5. Run `npm run build`.
-6. Optionally run `npm link`.
-7. Verify the `architect` command if linked.
-8. Test Architect from its own directory.
-9. Test Architect from another repository.
-
-For a non-linked side-by-side installation, use the compiled
-`dist/index.js` directly.
-
-## Maintenance Principle
-
-Keep the distinction clear between:
-
-- **Architect itself** — the development package and compiled CLI.
-- **The target repository** — the project Architect operates on.
-- **The developer environment** — Node.js, npm, and optional NVM configuration.
-
-Architect should remain externally applied to target repositories rather than
-requiring those repositories to contain Architect-specific source or
-dependencies.
+Architect therefore favors explicit boundaries, evidence-based transformation, bounded context, reusable cached state, and controlled model access over indiscriminate repository ingestion.

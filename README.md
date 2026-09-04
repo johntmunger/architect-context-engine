@@ -39,15 +39,15 @@ Reasoning Context
 
 Each stage reduces or transforms information for a specific reason.
 
-| Concern              | Why reduce unnecessary data?                            |
-| -------------------- | ------------------------------------------------------- |
-| **Speed**            | Less data to read, transmit, process, and return        |
-| **Cost**             | Fewer input/output tokens                               |
-| **Context capacity** | More room for the actual reasoning task                 |
-| **Privacy / safety** | Avoid sending information that isn't needed             |
-| **Security**         | Reduce unnecessary exposure across an API boundary      |
-| **Reliability**      | Less irrelevant material competing for model attention  |
-| **Caching**          | Smaller, more stable context is easier to reuse         |
+| Concern | Why reduce unnecessary data? |
+| --- | --- |
+| **Speed** | Less data to read, transmit, process, and return |
+| **Cost** | Fewer input/output tokens |
+| **Context capacity** | More room for the actual reasoning task |
+| **Privacy / safety** | Avoid sending information that isn't needed |
+| **Security** | Reduce unnecessary exposure across an API boundary |
+| **Reliability** | Less irrelevant material competing for model attention |
+| **Caching** | Smaller, more stable context is easier to reuse |
 | **Change detection** | Easier to determine what actually requires regeneration |
 
 ---
@@ -172,33 +172,21 @@ The output limit is intentionally a ceiling rather than a target. Different repo
 
 ## Usage
 
-Architect is invoked globally from the repository being analyzed.
+Architect is invoked from the repository being analyzed.
 
-### Crawl a Repository
+### Start Architect
 
 From the target repository:
 
 ```bash
-architect crawl
+architect
 ```
 
-The crawl command:
+Architect establishes the repository from the current working directory, performs the required repository processing, and opens the interactive reasoning workflow.
 
-1. identifies repository content within the filesystem boundaries
-2. collects supported text files
-3. constructs a bounded raw corpus
-4. sends the corpus to the semantic compression model
-5. writes the resulting architectural context to `project-summary.md`
+### Interactive Reasoning
 
-### Start Interactive Reasoning
-
-After a successful crawl:
-
-```bash
-architect chat
-```
-
-The chat command loads `project-summary.md` as the project's architectural context and opens an interactive terminal conversation.
+The interactive chat layer uses the generated architectural context for downstream reasoning.
 
 Type questions or requests directly into the terminal.
 
@@ -207,14 +195,6 @@ To close the session:
 ```text
 exit
 ```
-
-If `project-summary.md` does not exist, Architect will instruct you to run:
-
-```bash
-architect crawl
-```
-
-first.
 
 ---
 
@@ -227,12 +207,16 @@ project-summary.md
         ↓
    cached context
         ↓
-   Claude Sonnet 4.6
+ Claude Sonnet 4.6
         ↓
-   Architect response
+ Architect response
         ↓
-LATEST_RESPONSE.md
+ LATEST_RESPONSE.md
 ```
+
+The interactive reasoning model operates downstream of semantic compression rather than receiving the entire repository as its primary context.
+
+---
 
 ## Output
 
@@ -263,7 +247,7 @@ This file is generated output and is excluded from future crawls.
 
 ### `LATEST_RESPONSE.md`
 
-The most recent response produced by `architect chat`.
+The most recent response produced by `architect`.
 
 This provides a persistent artifact of the latest reasoning result that can be opened or previewed independently of the terminal session.
 
@@ -320,7 +304,7 @@ architect/
 │   ├── config.ts
 │   └── crawl.ts
 ├── dist/
-├── docs/
+├── ARCHITECTURE.md
 ├── package.json
 ├── package-lock.json
 ├── tsconfig.json
@@ -381,8 +365,7 @@ The system is designed around a simple principle:
 
 ## Setup
 
-Architect currently uses Anthropic's Claude models for semantic compression and
-interactive reasoning.
+Architect currently uses Anthropic's Claude models for semantic compression and interactive reasoning.
 
 1. Clone the repository.
 2. Install dependencies.
@@ -393,13 +376,11 @@ interactive reasoning.
 ANTHROPIC_API_KEY=your_key_here
 ```
 
-If you use a different `.env` location, update the path in `lib/config.ts`
-accordingly.
+If you use a different `.env` location, update the path in `lib/config.ts` accordingly.
 
 ## Using Architect with Another Repository
 
-Architect operates on the repository from which it is invoked. The Architect
-installation does not need to be part of, or linked into, the target repository.
+Architect operates on the repository from which it is invoked. The Architect installation does not need to be part of, or linked into, the target repository.
 
 ### Developer Installation
 
@@ -412,8 +393,7 @@ npm install
 npm run build
 ```
 
-If you want the `architect` command available globally during development,
-link the package:
+If you want the `architect` command available globally during development, link the package:
 
 ```bash
 npm link
@@ -451,5 +431,4 @@ cd ~/Code/my-project
 node ../architect/dist/index.js
 ```
 
-No source-code changes, dependency installation, or symlink inside the target
-repository are required.
+No source-code changes, dependency installation, or symlink inside the target repository are required.
