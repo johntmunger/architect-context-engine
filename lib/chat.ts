@@ -4,6 +4,8 @@ import readline from "readline";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
 
+import { PROJECT_SUMMARY_PATH, LATEST_RESPONSE_PATH } from "./path";
+
 const anthropic = new Anthropic({
   apiKey: ANTHROPIC_API_KEY,
 });
@@ -11,10 +13,8 @@ const anthropic = new Anthropic({
 const HEARTBEAT_INTERVAL = 4.5 * 60 * 1000;
 
 export async function runChat() {
-  const projectRoot = process.cwd();
-
-  const summaryPath = path.join(projectRoot, "project-summary.md");
-  const responsePath = path.join(projectRoot, "LATEST_RESPONSE.md");
+  const summaryPath = PROJECT_SUMMARY_PATH;
+  const responsePath = LATEST_RESPONSE_PATH;
 
   if (!fs.existsSync(summaryPath)) {
     console.error("❌ Context missing. Run 'architect crawl' first.");
