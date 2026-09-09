@@ -23,11 +23,12 @@ export function openLatestResponse(): void {
   }
 
   const workspace = process.cwd();
+
   const socketPath =
     process.env.ARCHITECT_IDE_SOCKET || getSocketPath(workspace);
 
   if (!fs.existsSync(socketPath)) {
-    openNative();
+    console.error(`❌ IDE socket not found: ${socketPath}`);
     return;
   }
 
@@ -62,13 +63,13 @@ export function openLatestResponse(): void {
           `❌ Architect IDE rejected the request for workspace: ${workspace}`,
         );
       }
-    } catch {
-      openNative();
+    } catch (error) {
+      console.error(`❌ Invalid IDE response: ${String(error)}`);
     }
   });
 
-  socket.on("error", () => {
-    openNative();
+  socket.on("error", (error) => {
+    console.error(`❌ IDE socket error: ${error.message}`);
   });
 }
 
