@@ -1,590 +1,157 @@
 # Architect — Architecture
 
-Architect is a repository-aware AI architecture system built around **controlled information boundaries**.
+## 1. Purpose
 
-The system deliberately separates repository discovery, evidence collection, semantic compression, interactive reasoning, artifact persistence, and IDE delivery.
+Architect is a local-first, repository-aware AI reasoning system.
 
-Its central architectural principle is:
+Its purpose is to help a model reason about a software repository using a controlled, architecture-focused representation rather than indiscriminately supplying the entire repository for every request.
+
+Architect separates:
+
+1. Repository discovery
+2. Evidence collection
+3. Semantic compression
+4. Interactive reasoning
+5. Persistent response generation
+6. IDE handoff
+
+The system is built around one central principle:
 
 > **Control the information before asking the model to reason about it.**
 
-This document describes the implementation model and the boundaries between its major components.
+Architect is not intended to be a complete repository mirror, unrestricted autonomous agent, or general-purpose remote execution channel.
 
 ---
 
-## 1. System Model
+## 2. Architectural Goals
 
-Architect operates on a target repository established by the process from which the CLI is invoked.
+Architect is designed to provide:
 
-The Architect installation and the target repository are separate concerns.
+* Bounded repository inspection
+* Explicit filesystem boundaries
+* Evidence-based project understanding
+* Reusable architectural context
+* Separation between crawling and reasoning
+* Persistent reasoning artifacts
+* Narrow and testable integration contracts
+* Workspace-aware IDE communication
+* Local-first operation
+* Clear failure behavior
+* Minimal unnecessary model context
 
-Conceptually:
-
-```text
-Architect Installation
-        │
-        │ CLI
-        ▼
-Current Working Directory
-        │
-        ▼
-Target Repository
-        │
-        ▼
-Filesystem Boundary
-        │
-        ▼
-Bounded Evidence
-        │
-        ▼
-Semantic Compression
-        │
-        ▼
-Architectural Knowledge
-        │
-        ▼
-Interactive Reasoning
-        │
-        ▼
-Persistent Response Artifact
-        │
-        ▼
-IDE Boundary
-```
-
-The target repository is determined from:
-
-```text
-process.cwd()
-```
-
-This is important because the same globally installed Architect executable can operate against many different repositories without becoming part of those repositories.
+The system should favor a small, faithful representation of the repository over a large, noisy context dump.
 
 ---
 
-# 2. Architectural Boundaries
+## 3. Non-Goals
 
-Architect is structured around explicit information and execution boundaries.
+Architect does not currently attempt to:
 
-```text
-Repository
-     │
-     ▼
-Filesystem Boundary
-     │
-     ▼
-Evidence Boundary
-     │
-     ▼
-Semantic Processing Boundary
-     │
-     ▼
-Architectural Knowledge
-     │
-     ▼
-Reasoning Boundary
-     │
-     ▼
-Artifact Boundary
-     │
-     ▼
-IDE Boundary
-```
+* Send every repository file to the model
+* Maintain a complete semantic index of every source symbol
+* Replace an IDE
+* Act as a general-purpose remote execution framework
+* Execute arbitrary model-generated shell commands
+* Provide a universal protocol for every IDE action
+* Automatically modify repository source code
+* Guarantee that generated architectural context is permanently current
+* Treat generated artifacts as authoritative source code
 
-Each boundary has a distinct responsibility.
-
-### Filesystem Boundary
-
-Determines which repository content may enter the system.
-
-### Evidence Boundary
-
-Defines the bounded material that is available for architectural analysis.
-
-### Semantic Processing Boundary
-
-Transforms repository evidence into a smaller architectural representation.
-
-### Reasoning Boundary
-
-Determines what context is supplied to the interactive reasoning model.
-
-### Artifact Boundary
-
-Persists the result of reasoning outside the interactive session.
-
-### IDE Boundary
-
-Delivers an explicitly requested artifact into the editor associated with the current workspace.
-
-These boundaries are intentionally separated rather than allowing one component to implicitly perform another component's work.
+The current system is primarily an **architectural understanding and reasoning pipeline** with a narrow IDE artifact-opening capability.
 
 ---
 
-# 3. Information Flow
+## 4. System Overview
 
-The primary data flow is:
-
-```text
-Target Repository
-       │
-       ▼
-    crawl.ts
-       │
-       ▼
-Raw Repository Corpus
-       │
-       ▼
-  compress.ts
-       │
-       ▼
-project-summary.md
-       │
-       ▼
-    chat.ts
-       │
-       ▼
-LATEST_RESPONSE.md
-       │
-       ▼
-     open.ts
-       │
-       ▼
-Workspace-specific IDE socket
-       │
-       ▼
-Architect IDE Bridge
-```
-
-This creates two important transformations.
-
-The first is:
+The current system can be represented as:
 
 ```text
-Repository
-    ↓
-Bounded Evidence
-    ↓
-Architectural Knowledge
-```
-
-The second is:
-
-```text
-Reasoning Result
-    ↓
-Persistent Artifact
-    ↓
-IDE Presentation
-```
-
-The IDE does not participate in repository analysis.
-
-It is a delivery boundary.
-
----
-
-# 4. Filesystem Discovery
-
-Filesystem discovery is implemented primarily in:
-
-```text
-lib/crawl.ts
-```
-
-The crawler is responsible for establishing the raw information boundary before model processing occurs.
-
-The crawler does not attempt to understand the architecture while walking the filesystem.
-
-Its job is to determine what repository information is eligible to become evidence.
-
----
-
-## 4.1 Ignored Directories
-
-The crawler excludes implementation, build, cache, and version-control directories including:
-
-```text
-node_modules
-.git
-.next
-dist
-build
-.cache
-```
-
-These directories are excluded because their contents are generally not primary architectural evidence.
-
-The exclusion also prevents dependency trees and generated output from dominating the evidence corpus.
-
----
-
-## 4.2 Directory Content Ceiling
-
-Architect applies a generic directory-level content ceiling of:
-
-```text
-100,000 bytes
-```
-
-A directory whose aggregate file content exceeds this ceiling is excluded before Architect descends into the directory.
-
-This is intentionally generic.
-
-It is not a hardcoded rule for a particular repository or technology.
-
-The purpose is to prevent large content trees from crossing the filesystem boundary simply because they happen to contain many individually valid files.
-
-The directory-level decision therefore occurs before those contents become part of the raw corpus.
-
----
-
-## 4.3 File Content Ceiling
-
-Individual files larger than:
-
-```text
-250,000 bytes
-```
-
-are skipped.
-
-This provides a second boundary after directory-level filtering.
-
-The two limits serve different purposes:
-
-```text
-Directory ceiling
-        ↓
-Reject oversized content trees
-
-File ceiling
-        ↓
-Reject oversized individual files
+┌─────────────────────────────┐
+│ Target Repository            │
+│                             │
+│ Source files                │
+│ Configuration               │
+│ Documentation               │
+│ Repository structure        │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Crawl Boundary              │
+│                             │
+│ Filesystem scope            │
+│ Directory exclusions        │
+│ File filtering              │
+│ Corpus limits               │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Raw Evidence Corpus         │
+│                             │
+│ architect-raw-crawl.txt     │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Semantic Compression        │
+│                             │
+│ Architecture-focused model  │
+│ Evidence-based synthesis    │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Project Context             │
+│                             │
+│ project-summary.md          │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Interactive Reasoning       │
+│                             │
+│ architect chat              │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ Persistent Response         │
+│                             │
+│ LATEST_RESPONSE.md          │
+└──────────────┬──────────────┘
+               │
+               ▼
+┌─────────────────────────────┐
+│ IDE Handoff                 │
+│                             │
+│ architect open              │
+│ Workspace-specific socket   │
+└─────────────────────────────┘
 ```
 
 ---
 
-## 4.4 Supported Text Extensions
+## 5. Core Components
 
-The crawler currently considers:
+## 5.1 CLI Entry Point
 
-```text
-.ts
-.tsx
-.js
-.jsx
-.json
-.md
-.yaml
-.yml
-.toml
-.css
-.html
-```
+### `index.ts`
 
-Architect is therefore deliberately focused on textual repository evidence rather than attempting to ingest arbitrary binary or generated content.
+The CLI entry point is responsible for:
 
----
+* Parsing command input
+* Dispatching supported commands
+* Invoking the appropriate application layer
+* Reporting success and failure to the terminal
 
-# 5. Generated Artifact Exclusion
-
-Architect generates artifacts inside the target repository.
-
-Those artifacts must not become evidence for the next crawl.
-
-The crawler therefore excludes:
+The CLI is exposed as:
 
 ```text
-architect-raw-crawl.txt
-project-summary.md
-LATEST_RESPONSE.md
+architect
 ```
 
-This establishes a one-way relationship:
-
-```text
-Repository Evidence
-        │
-        ▼
-Architect Processing
-        │
-        ▼
-Generated Artifacts
-```
-
-rather than:
-
-```text
-Repository Evidence
-        ↕
-Generated Artifacts
-```
-
-Without this boundary, Architect could progressively analyze its own previous outputs instead of the underlying repository.
-
----
-
-# 6. Raw Evidence Corpus
-
-The bounded crawler output is persisted as:
-
-```text
-architect-raw-crawl.txt
-```
-
-This file represents the material that crossed the filesystem/evidence boundary.
-
-It is useful as an observable intermediate representation.
-
-It allows inspection of:
-
-- what files were collected
-- what information entered the corpus
-- whether directory boundaries behaved as expected
-- whether file filtering behaved as expected
-- how corpus size changes between runs
-
-The raw corpus is not intended to be the final architectural representation.
-
-It is evidence.
-
-That distinction is important:
-
-```text
-Raw Corpus
-    =
-Collected Evidence
-
-Project Summary
-    =
-Architectural Representation
-```
-
----
-
-# 7. Semantic Compression
-
-Semantic compression is implemented in:
-
-```text
-lib/compress.ts
-```
-
-The current compression model is:
-
-```text
-Claude Haiku 4.5
-claude-haiku-4-5-20251001
-```
-
-The compression stage receives the bounded repository evidence and transforms it into architectural knowledge.
-
-The model is not asked to reproduce the repository.
-
-It is asked to preserve the relationships and information required for architectural reasoning.
-
----
-
-## 7.1 Compression Priorities
-
-The compression stage prioritizes:
-
-- project purpose
-- repository structure
-- components
-- relationships
-- data flows
-- control flows
-- interfaces
-- contracts
-- execution boundaries
-- authority boundaries
-- dependencies
-- repository-specific patterns
-- architectural decisions
-- constraints
-- important files
-
-It deliberately removes information that is below the level required for architectural reasoning.
-
----
-
-## 7.2 Compression Constraints
-
-The compression model is instructed to:
-
-- use repository evidence only
-- avoid inventing behavior
-- avoid inventing relationships
-- preserve important architectural relationships
-- avoid reproducing source code
-- avoid summarizing every file independently
-- omit repetitive implementation detail
-
-The intended result is:
-
-> **The smallest faithful architectural representation that allows downstream reasoning about the repository.**
-
-The configured output ceiling is a maximum rather than a target.
-
-A smaller repository should not be artificially expanded merely to reach a fixed output size.
-
----
-
-# 8. Architectural Knowledge
-
-The output of semantic compression is written to:
-
-```text
-project-summary.md
-```
-
-This file is the primary reusable architectural representation produced by Architect.
-
-It sits between repository evidence and interactive reasoning:
-
-```text
-Raw Repository Evidence
-        │
-        ▼
-Semantic Compression
-        │
-        ▼
-project-summary.md
-        │
-        ▼
-Interactive Reasoning
-```
-
-The important architectural property is that the reasoning model does not need to receive the complete raw repository as its primary context.
-
-Instead, the repository has already passed through an explicit evidence and semantic-processing boundary.
-
----
-
-# 9. Interactive Reasoning
-
-Interactive reasoning is implemented in:
-
-```text
-lib/chat.ts
-```
-
-The current reasoning model is:
-
-```text
-Claude Sonnet 4.6
-claude-sonnet-4-6
-```
-
-The reasoning layer operates downstream of semantic compression.
-
-Conceptually:
-
-```text
-project-summary.md
-        │
-        ▼
-Cached Architectural Context
-        │
-        ▼
-Claude Sonnet 4.6
-        │
-        ▼
-Interactive Response
-        │
-        ▼
-LATEST_RESPONSE.md
-```
-
-This separation prevents repository ingestion and interactive reasoning from becoming the same operation.
-
-The crawler establishes what information is available.
-
-The compression stage establishes what architectural knowledge survives.
-
-The reasoning layer operates on that resulting representation.
-
----
-
-# 10. Prompt Caching
-
-The interactive reasoning layer is designed around a reusable project context.
-
-The architectural representation can remain stable across multiple questions during an interactive session.
-
-Architect therefore uses prompt caching for the persistent project context.
-
-The purpose is both operational and architectural:
-
-```text
-Stable Project Context
-        │
-        ├── request 1
-        ├── request 2
-        ├── request 3
-        └── request N
-```
-
-The same architectural knowledge can support multiple reasoning operations without treating every request as a completely new repository-ingestion event.
-
----
-
-# 11. Heartbeat Behavior
-
-Long-running interactive sessions maintain a heartbeat to keep the reasoning interaction active.
-
-The current implementation uses a heartbeat interval of approximately:
-
-```text
-4.5 minutes
-```
-
-The heartbeat exists at the runtime/session layer.
-
-It does not alter the architectural representation.
-
-This distinction matters because session maintenance is separate from repository analysis.
-
----
-
-# 12. Response Artifact
-
-Successful reasoning responses are persisted as:
-
-```text
-LATEST_RESPONSE.md
-```
-
-The artifact boundary provides a persistent representation of the latest reasoning result.
-
-The response therefore exists independently of the terminal interaction that produced it.
-
-Conceptually:
-
-```text
-Interactive Reasoning
-        │
-        ▼
-LATEST_RESPONSE.md
-```
-
-The file is overwritten by each successful chat response.
-
-It is excluded from future crawls and should not be treated as repository source material.
-
----
-
-# 13. CLI Runtime Boundary
-
-The CLI entry point is:
-
-```text
-index.ts
-```
-
-The public command surface is:
+The current command surface is:
 
 ```text
 architect crawl
@@ -592,841 +159,914 @@ architect chat
 architect open
 ```
 
-Command dispatch is explicit.
+The CLI should remain thin.
 
-```text
-crawl
-  ↓
-runCrawl()
-
-chat
-  ↓
-runChat()
-
-open
-  ↓
-openLatestResponse()
-```
-
-The runtime is compiled from TypeScript into:
-
-```text
-dist/index.js
-```
-
-The package exposes that compiled entry point as the global:
-
-```text
-architect
-```
-
-The production execution boundary is therefore:
-
-```text
-TypeScript
-    ↓
-TypeScript compiler
-    ↓
-dist/index.js
-    ↓
-architect
-```
-
-The Architect installation remains independent of the target repository.
+Business logic belongs in the corresponding modules rather than being embedded directly in command dispatch.
 
 ---
 
-# 14. Workspace Identity
-
-Workspace identity is established from:
-
-```text
-process.cwd()
-```
-
-when the CLI is invoked.
-
-This value is used by the IDE-opening path to determine which editor workspace should receive the request.
-
-For example:
-
-```text
-cd ~/Code/project-a
-architect open
-```
-
-and:
-
-```text
-cd ~/Code/project-b
-architect open
-```
-
-represent different workspace identities even though the same global `architect` executable is used.
-
-This is preferable to maintaining a single global IDE destination.
-
----
-
-# 15. IDE Boundary
-
-IDE integration is implemented as a separate adapter architecture.
-
-The core CLI does not directly control a specific editor.
-
-Instead:
-
-```text
-Architect CLI
-      │
-      ▼
-Local IPC
-      │
-      ▼
-IDE Adapter
-      │
-      ▼
-Editor Workspace
-```
-
-The current adapter is the separate:
-
-```text
-architect-ide-vscode
-```
-
-repository.
-
-The adapter is responsible for translating Architect's generic open request into the native behavior of a VS Code-compatible editor.
-
-The core Architect repository therefore does not contain editor-specific UI logic.
-
----
-
-# 16. Workspace-Aware IPC Routing
-
-The IDE bridge uses a Unix domain socket for local communication.
-
-Socket paths are derived deterministically from the workspace path.
-
-The algorithm is:
-
-```text
-workspacePath
-      │
-      ▼
-SHA-256
-      │
-      ▼
-first 16 hexadecimal characters
-      │
-      ▼
-~/.architect/ide-<hash>.sock
-```
-
-For example, conceptually:
-
-```text
-/Users/example/Code/project
-        ↓
-SHA-256
-        ↓
-e7a043034d556547...
-        ↓
-~/.architect/ide-e7a043034d556547.sock
-```
-
-The complete hash is not required for routing.
-
-The first 16 hexadecimal characters provide the deterministic workspace-specific identifier used by the current implementation.
-
----
-
-# 17. Why Workspace-Hashed Sockets Exist
-
-A single global IDE socket would create ambiguity when multiple editor windows or repositories are open.
-
-For example:
-
-```text
-Repository A ── IDE A
-Repository B ── IDE B
-Repository C ── IDE C
-```
-
-The CLI must not have to guess which editor should receive:
-
-```text
-architect open
-```
-
-Workspace hashing establishes a deterministic mapping:
-
-```text
-Repository A
-    ↓
-Socket A
-    ↓
-IDE A
-
-Repository B
-    ↓
-Socket B
-    ↓
-IDE B
-```
-
-The current working directory therefore becomes the routing identity.
-
----
-
-# 18. CLI → IDE Contract
-
-The CLI sends an explicit open request containing:
-
-```text
-{
-  action: "open",
-  workspace: <workspace path>,
-  path: <response path>
-}
-```
-
-The IDE adapter validates that:
-
-```text
-request.workspace
-```
-
-matches its active workspace.
-
-The expected successful response is conceptually:
-
-```text
-{
-  ok: true,
-  workspace: <workspace path>
-}
-```
-
-A rejected request returns:
-
-```text
-{
-  ok: false,
-  ...
-}
-```
-
-The IDE adapter does not determine which file should be opened.
-
-The CLI provides the explicit path.
-
-This keeps artifact ownership on the Architect side and file presentation on the IDE side.
-
----
-
-# 19. IDE Adapter Responsibilities
-
-The current VS Code-compatible bridge is intentionally narrow.
-
-It is responsible for:
-
-1. determining its active workspace
-2. establishing the workspace-specific IPC socket
-3. receiving an Architect open request
-4. validating workspace identity
-5. opening the explicitly supplied file
-6. returning a success or failure response
-7. cleaning up its socket when the extension is disposed
-
-It is **not** responsible for:
-
-- repository crawling
-- semantic compression
-- model selection
-- prompt construction
-- interactive reasoning
-- generating `project-summary.md`
-- generating `LATEST_RESPONSE.md`
-
-This is an adapter boundary, not an AI runtime.
-
----
-
-# 20. IDE Failure Behavior
-
-The IDE integration intentionally fails explicitly when no matching adapter is available.
-
-If the expected workspace-specific socket does not exist:
-
-```text
-IDE socket not found
-```
-
-is reported.
-
-The core CLI does not silently open the response through a native operating-system file opener.
-
-This is an intentional design choice.
-
-A native fallback could cause:
-
-- focus to move unexpectedly
-- the response to open in the wrong application
-- an unrelated editor to receive the file
-- workspace identity to be lost
-
-The `open` command therefore means:
-
-> **Open the latest response in the Architect IDE associated with this workspace.**
-
-It does not mean:
-
-> **Open this file somewhere using whatever application the operating system chooses.**
-
----
-
-# 21. Local IPC Model
-
-The current IDE communication uses local Unix domain sockets under:
-
-```text
-~/.architect/
-```
-
-The communication path is local to the machine.
-
-The socket is associated with a specific workspace.
-
-The adapter also validates the workspace value supplied by the CLI before accepting the request.
-
-The IPC mechanism is intentionally simple because the required operation is simple:
-
-```text
-send path
-    ↓
-validate workspace
-    ↓
-open file
-    ↓
-return result
-```
-
-There is no need for a general-purpose remote protocol for the current use case.
-
----
-
-# 22. Multiple IDE Instances
-
-Workspace-aware routing allows multiple repositories to have independent adapter sockets.
-
-Conceptually:
-
-```text
-~/.architect/
-├── ide-<workspace-a-hash>.sock
-├── ide-<workspace-b-hash>.sock
-└── ide-<workspace-c-hash>.sock
-```
-
-The CLI selects the socket associated with the current working directory.
-
-An optional environment override is also supported:
-
-```text
-ARCHITECT_IDE_SOCKET
-```
-
-This provides an explicit routing mechanism for development, diagnostics, or controlled environments.
-
----
-
-# 23. Editor Independence
-
-The CLI's IDE boundary is deliberately editor-agnostic.
-
-The current adapter targets VS Code-compatible editors, but the CLI does not depend on VS Code APIs.
-
-A future adapter can implement the same contract for another editor.
-
-For example:
-
-```text
-                  Architect CLI
-                       │
-                       ▼
-                 Open Contract
-                  /     |     \
-                 /      |      \
-                ▼       ▼       ▼
-             VS Code  Cursor  JetBrains
-             Adapter  Adapter   Adapter
-```
-
-The current implementation provides the first branch.
-
-JetBrains/WebStorm integration is not part of the current v1 adapter.
-
-Adding such an adapter should not require changing the repository crawler, compression pipeline, reasoning layer, or response artifact model.
-
----
-
-# 24. Component Responsibilities
-
-The current core components are:
-
-```text
-architect/
-├── index.ts
-├── lib/
-│   ├── crawl.ts
-│   ├── compress.ts
-│   ├── config.ts
-│   ├── chat.ts
-│   └── open.ts
-├── dist/
-├── README.md
-└── ARCHITECTURE.md
-```
-
-### `index.ts`
-
-Owns:
-
-- CLI entry point
-- command dispatch
-
-It does not own repository analysis or IDE protocol implementation.
+## 5.2 Crawl Layer
 
 ### `lib/crawl.ts`
 
-Owns:
+The crawl layer is responsible for transforming a repository filesystem into a bounded evidence corpus.
 
-- filesystem traversal
-- directory boundaries
-- file boundaries
-- text filtering
-- generated-artifact exclusion
-- raw corpus creation
-- compression-stage orchestration
+Its responsibilities include:
+
+* Determining the target workspace
+* Discovering repository content
+* Applying directory exclusions
+* Applying file exclusions
+* Selecting supported text files
+* Enforcing crawl limits
+* Constructing the raw corpus
+* Persisting the raw crawl artifact
+* Invoking semantic compression
+
+The crawler is an information boundary.
+
+It determines what information is allowed to proceed to the model layer.
+
+### Crawl principle
+
+The crawler should not be understood as:
+
+> Read everything and send it to the model.
+
+It should be understood as:
+
+> Collect the most relevant permitted evidence within explicit limits.
+
+### Crawl output
+
+The raw evidence artifact is:
+
+```text
+architect-raw-crawl.txt
+```
+
+This artifact exists for inspection and debugging.
+
+It makes the crawl boundary observable by allowing developers to inspect what information was collected before compression.
+
+---
+
+## 5.3 Compression Layer
 
 ### `lib/compress.ts`
 
-Owns:
+The compression layer converts bounded repository evidence into an architecture-focused project representation.
 
-- semantic compression
-- Anthropic compression-model invocation
-- architectural representation generation
+The compression stage should preserve:
+
+* Project purpose
+* Repository structure
+* Component relationships
+* Data flows
+* Control flows
+* Interfaces
+* Contracts
+* Dependencies
+* Execution boundaries
+* Important implementation patterns
+* Architectural constraints
+* Important files
+* Evidence-supported design decisions
+
+The compression stage should avoid:
+
+* Reproducing large sections of source code
+* Summarizing every file independently
+* Inventing behavior
+* Inventing dependencies
+* Treating guesses as repository facts
+* Preserving repetitive implementation detail
+* Expanding beyond the evidence supplied to it
+
+The intended output is not a conventional file-by-file summary.
+
+It is a compact architectural model suitable for downstream reasoning.
+
+### Compression objective
+
+> **Produce the smallest faithful architectural representation that allows downstream reasoning about the repository.**
+
+The output limit is a ceiling, not a target.
+
+A small repository may require little context. A complex repository may require more context to preserve meaningful relationships.
+
+---
+
+## 5.4 Configuration Layer
 
 ### `lib/config.ts`
 
-Owns:
+The configuration layer is responsible for runtime settings and environment handling.
 
-- environment configuration
-- runtime configuration
+This includes configuration such as:
+
+* API credentials
+* Model selection
+* Runtime options
+* Application-level limits
+* Environment-specific behavior
+
+Secrets must be supplied through environment configuration and must not be written into generated artifacts or committed to version control.
+
+The current model configuration is an implementation detail and may change independently of the architectural contract.
+
+---
+
+## 5.5 Chat Layer
 
 ### `lib/chat.ts`
 
-Owns:
+The chat layer is responsible for interactive reasoning over generated project context.
 
-- interactive reasoning
-- architectural context
-- prompt caching
-- heartbeat/session behavior
-- response persistence
+The intended flow is:
+
+```text
+project-summary.md
+        ↓
+Loaded project context
+        ↓
+Interactive reasoning model
+        ↓
+Architect response
+        ↓
+LATEST_RESPONSE.md
+```
+
+The chat layer is deliberately separate from crawling and compression.
+
+This separation provides several benefits:
+
+* Crawling does not need to happen for every question.
+* The same project context can support multiple questions.
+* The model receives a stable architectural representation.
+* The latest response can be persisted independently.
+* Crawl and reasoning failures can be diagnosed separately.
+
+The chat layer should not silently replace the project context with an unrestricted repository dump.
+
+If project context is missing, the expected behavior is to instruct the user to run:
+
+```bash
+architect crawl
+```
+
+---
+
+## 5.6 Open Layer
 
 ### `lib/open.ts`
 
-Owns:
+The open layer is responsible for handing the latest response artifact to an IDE integration.
 
-- locating the latest response
-- workspace identity
-- workspace-specific socket routing
-- IDE open request
-- IDE response handling
-- explicit IDE failure behavior
+Its responsibilities include:
 
----
+* Resolving the current workspace
+* Computing the workspace-specific integration identity
+* Locating the local IDE socket
+* Constructing the open request
+* Sending the request
+* Reading the integration response
+* Reporting success or failure
 
-# 25. Architectural Invariants
+The current open operation is intentionally narrow.
 
-Several properties should remain true as Architect evolves.
-
-## 25.1 The Repository Is Not the Reasoning Context
-
-The raw repository should not become the default reasoning payload simply because it is available.
-
-Repository information must first pass through the established boundaries.
-
-```text
-Repository
-    ↓
-Bounded Evidence
-    ↓
-Architectural Representation
-    ↓
-Reasoning
-```
-
----
-
-## 25.2 Generated Context Must Not Feed Back Into Crawling
-
-Architect-generated artifacts must remain outside subsequent repository evidence.
-
-```text
-Generated Artifacts
-        ✕
-        │
-        │
-Future Crawl
-```
-
-This prevents recursive contamination of architectural context.
-
----
-
-## 25.3 Workspace Identity Must Be Deterministic
-
-The same absolute workspace path must resolve to the same socket identity.
-
-```text
-workspace path
-      ↓
-deterministic hash
-      ↓
-deterministic socket
-```
-
-The CLI should not need editor-specific heuristics to determine the destination.
-
----
-
-## 25.4 IDE Integration Must Remain a Boundary
-
-The core Architect runtime should not become coupled to editor APIs.
-
-The IDE bridge is an adapter.
-
-```text
-Architect
-    │
-    │ generic open contract
-    ▼
-IDE Adapter
-    │
-    ▼
-Editor API
-```
-
----
-
-## 25.5 Artifact Ownership Remains Explicit
-
-Architect owns the response artifact.
-
-The IDE owns presentation of that artifact.
-
-```text
-Architect
-   │
-   ├── creates LATEST_RESPONSE.md
-   │
-   ▼
-IDE Adapter
-   │
-   └── opens LATEST_RESPONSE.md
-```
-
-The IDE should not become responsible for generating or interpreting the response.
-
----
-
-## 25.6 Failures Should Be Explicit
-
-A missing IDE adapter should produce an explicit routing error.
-
-The system should not silently substitute another application or another workspace.
-
-Explicit failure preserves the semantics of the command and prevents unexpected side effects.
-
----
-
-# 26. End-to-End Runtime
-
-The complete current flow can be represented as:
-
-```text
-                 TARGET REPOSITORY
-                        │
-                        ▼
-               architect crawl
-                        │
-                        ▼
-              Filesystem Boundary
-                        │
-                        ▼
-                Bounded Evidence
-                        │
-                        ▼
-             architect-raw-crawl.txt
-                        │
-                        ▼
-              Semantic Compression
-                  Claude Haiku 4.5
-                        │
-                        ▼
-                project-summary.md
-                        │
-                        ▼
-               architect chat
-                        │
-                        ▼
-              Cached Project Context
-                        │
-                        ▼
-              Claude Sonnet 4.6
-                        │
-                        ▼
-               LATEST_RESPONSE.md
-                        │
-                        ▼
-               architect open
-                        │
-                        ▼
-             Workspace Identity
-                        │
-                        ▼
-              SHA-256 Socket Hash
-                        │
-                        ▼
-           ~/.architect/ide-<hash>.sock
-                        │
-                        ▼
-              Architect IDE Bridge
-                        │
-                        ▼
-                  Active IDE
-```
-
-The system therefore contains a clear progression:
-
-```text
-Discovery
-    ↓
-Evidence
-    ↓
-Compression
-    ↓
-Knowledge
-    ↓
-Reasoning
-    ↓
-Artifact
-    ↓
-Presentation
-```
-
----
-
-# 27. Separation of Concerns
-
-Architect's architecture deliberately separates five different kinds of work.
-
-### Discovery
-
-> What exists in the repository?
-
-Handled by:
-
-```text
-lib/crawl.ts
-```
-
-### Compression
-
-> What architectural information is worth preserving?
-
-Handled by:
-
-```text
-lib/compress.ts
-```
-
-### Reasoning
-
-> What can we infer, explain, or decide from that architectural representation?
-
-Handled by:
-
-```text
-lib/chat.ts
-```
-
-### Persistence
-
-> What result should survive the interactive session?
-
-Handled by:
+It opens:
 
 ```text
 LATEST_RESPONSE.md
 ```
 
-### Presentation
-
-> Which editor workspace should display that result?
-
-Handled by:
-
-```text
-lib/open.ts
-+
-architect-ide-vscode
-```
-
-These concerns should not collapse into a single runtime abstraction merely for convenience.
+It does not execute arbitrary IDE commands or provide a general-purpose remote control interface.
 
 ---
 
-# 28. Why the Boundaries Matter
+## 6. Artifact Lifecycle
 
-The architecture is not primarily an optimization for reducing token counts.
-
-The boundaries provide control over what information is allowed to move through the system.
-
-That affects:
-
-- context capacity
-- API cost
-- processing time
-- reasoning quality
-- reliability
-- privacy
-- security
-- caching
-- reproducibility
-- debugging
-- change detection
-
-The important architectural distinction is:
-
-```text
-Available Information
-        ≠
-Required Information
-```
-
-Architect exists to make that distinction operational.
-
----
-
-# 29. Current Model Responsibilities
-
-The current implementation gives the two Claude models different responsibilities.
-
-```text
-Claude Haiku 4.5
-        │
-        ▼
-Semantic Compression
-        │
-        ▼
-Architectural Knowledge
-
-Claude Sonnet 4.6
-        │
-        ▼
-Interactive Reasoning
-        │
-        ▼
-Architect Response
-```
-
-Haiku is used for reducing bounded repository evidence into an architectural representation.
-
-Sonnet is used for reasoning over that representation.
-
-The models therefore occupy different stages of the architecture rather than competing for the same task.
-
----
-
-# 30. Deferred Capabilities
-
-The current architecture intentionally does not attempt to solve every possible AI development workflow.
-
-The following capabilities remain outside the core v1 implementation:
-
-- model-provider abstraction
-- automatic model fallback
-- broad editor integration
-- JetBrains/WebStorm adapter
-- generalized remote IDE transport
-- autonomous code modification
-- generalized agent orchestration
-- repository-wide arbitrary binary ingestion
-
-These may be added later if they preserve the existing boundaries.
-
-The architecture should not be expanded merely because a capability is technically possible.
-
----
-
-# 31. Architectural Principle
-
-Architect is built around a simple proposition:
-
-> **Better reasoning begins with better information boundaries.**
-
-The system therefore does not start with:
+Architect uses generated files as explicit boundaries between stages.
 
 ```text
 Repository
     ↓
-LLM
+architect-raw-crawl.txt
+    ↓
+project-summary.md
+    ↓
+Interactive chat
+    ↓
+LATEST_RESPONSE.md
 ```
 
-It starts with:
+## 6.1 `architect-raw-crawl.txt`
+
+This file contains the bounded raw evidence corpus.
+
+It is useful for:
+
+* Inspecting collected evidence
+* Debugging crawl behavior
+* Comparing corpus sizes
+* Reviewing exclusions
+* Verifying the crawl boundary
+* Investigating compression input
+
+It is generated output.
+
+It must be excluded from future crawls.
+
+## 6.2 `project-summary.md`
+
+This file contains the compressed architectural representation.
+
+It is the primary reusable project-context artifact.
+
+It is intended to be:
+
+* Readable by humans
+* Reusable by the chat layer
+* Small enough to avoid unnecessary context expansion
+* Faithful to repository evidence
+* Regenerated when repository architecture changes materially
+
+It is generated output.
+
+It must be excluded from future crawls.
+
+## 6.3 `LATEST_RESPONSE.md`
+
+This file contains the most recent successful response from interactive chat.
+
+It exists to provide a durable artifact outside the terminal session.
+
+It can be:
+
+* Opened in an IDE
+* Previewed as Markdown
+* Reviewed later
+* Shared manually
+* Used as a record of the latest reasoning result
+
+It is overwritten after each successful response.
+
+It is generated output and should not be committed as source.
+
+---
+
+## 7. Information Boundaries
+
+Architect has multiple information boundaries.
 
 ```text
-Repository
-    ↓
-Boundary Decisions
-    ↓
-Relevant Evidence
-    ↓
-Semantic Compression
-    ↓
-Architectural Knowledge
-    ↓
-Reasoning
+Filesystem boundary
+        ↓
+Crawler boundary
+        ↓
+Raw corpus boundary
+        ↓
+Compression boundary
+        ↓
+Project-context boundary
+        ↓
+Chat request boundary
+        ↓
+IDE handoff boundary
 ```
 
-The IDE layer then remains separate:
+Each boundary should have a clear purpose.
+
+## 7.1 Filesystem Boundary
+
+The filesystem boundary determines which repository locations may be inspected.
+
+It should prevent accidental traversal into unrelated locations such as:
+
+* User home directories outside the workspace
+* Dependency directories
+* Build output
+* Generated artifacts
+* Version-control internals
+* IDE metadata
+* Secrets
+* Other repositories
+
+The exact exclusion behavior is implemented by the crawler and repository configuration.
+
+## 7.2 Corpus Boundary
+
+The corpus boundary limits the amount of raw evidence that can be assembled.
+
+This protects against:
+
+* Unbounded model input
+* Excessive token usage
+* Context pollution
+* Accidental inclusion of irrelevant files
+* Large generated files overwhelming useful source evidence
+
+A crawl limit is a safety and quality boundary, not merely a performance optimization.
+
+## 7.3 Compression Boundary
+
+The compression boundary transforms raw evidence into architectural knowledge.
+
+The compression model should not be treated as an unrestricted author.
+
+Its output must remain grounded in the supplied repository evidence.
+
+Where evidence is insufficient, the resulting context should preserve uncertainty rather than inventing an answer.
+
+## 7.4 Chat Boundary
+
+The chat layer reasons over the generated project context.
+
+This makes the project summary a deliberate intermediate representation.
+
+The model is not expected to receive the entire repository for every question.
+
+## 7.5 IDE Boundary
+
+The IDE integration receives a narrow local request.
+
+The current protocol is designed around opening a generated Markdown artifact.
+
+The IDE integration should not become an implicit general-purpose execution authority.
+
+---
+
+## 8. IDE Integration Architecture
+
+IDE integrations are maintained inside the main repository:
 
 ```text
-Reasoning Result
-    ↓
-Persistent Artifact
-    ↓
-Explicit Workspace Routing
-    ↓
-IDE Presentation
+integrations/
+├── vscode/
+└── jetbrains/
 ```
 
-The resulting architecture is intentionally conservative about information flow and explicit about execution ownership.
+The integrated repository is the canonical source for new changes.
 
-The repository supplies evidence.
+The former standalone VS Code/Cursor bridge may remain online for backup, historical reference, or recovery purposes, but it should not be treated as the primary development location.
 
-The compression layer produces architectural knowledge.
+---
 
-The reasoning layer reasons over that knowledge.
+## 8.1 Workspace Identity
 
-Architect owns the resulting artifact.
+Architect uses workspace-specific identity for IDE communication.
 
-The IDE adapter presents it.
+The current implementation derives an identifier from the current workspace path:
 
-Each boundary has one job.
+```text
+sha256(process.cwd()).slice(0, 16)
+```
 
-That separation is the foundation of the system.
+The resulting socket follows the pattern:
+
+```text
+~/.architect/ide-<workspace-hash>.sock
+```
+
+This prevents separate repositories from accidentally targeting the same IDE endpoint.
+
+Workspace identity is important because a developer may have multiple IDE windows open simultaneously.
+
+A global socket would create ambiguity about:
+
+* Which workspace should receive the request
+* Which IDE instance should open the file
+* Whether the artifact belongs to the correct repository
+
+Workspace-specific sockets make the routing decision explicit.
+
+---
+
+## 8.2 Open Request
+
+The current open request has the following conceptual shape:
+
+```json
+{
+  "action": "open",
+  "workspace": "/path/to/workspace",
+  "path": "/path/to/workspace/LATEST_RESPONSE.md"
+}
+```
+
+The request contains:
+
+* The requested action
+* The workspace from which the request originated
+* The artifact path to open
+
+The request is sent over the workspace-specific local Unix socket.
+
+The protocol is intentionally small.
+
+It should remain easy to:
+
+* Inspect
+* Test
+* Mock
+* Implement in multiple IDEs
+* Diagnose when something fails
+
+---
+
+## 8.3 Open Response
+
+The IDE integration returns a structured response.
+
+A successful response is represented conceptually as:
+
+```json
+{
+  "ok": true
+}
+```
+
+A failure response should provide enough information for the CLI to report a useful diagnostic without exposing unnecessary internal details.
+
+The CLI should distinguish between failures such as:
+
+* Socket not found
+* IDE integration not running
+* Workspace mismatch
+* Connection failure
+* Invalid response
+* IDE-side open failure
+
+---
+
+## 8.4 VS Code/Cursor Integration
+
+### `integrations/vscode/`
+
+The VS Code/Cursor integration is responsible for:
+
+* Running inside a VS Code-compatible editor
+* Identifying the active workspace
+* Creating the workspace-specific local socket
+* Receiving open requests
+* Validating the request
+* Opening the requested Markdown artifact
+* Returning a structured response
+* Cleaning up its socket when the integration exits
+
+The bridge should not assume that every request is valid.
+
+At minimum, it should validate:
+
+* The action
+* The workspace
+* The target path
+* The relationship between the target path and workspace
+
+The bridge should not become a general-purpose shell or arbitrary command executor.
+
+---
+
+## 8.5 JetBrains Integration
+
+### `integrations/jetbrains/`
+
+The JetBrains integration is implemented as an IntelliJ Platform plugin.
+
+It is designed for JetBrains IDEs such as WebStorm and other compatible IntelliJ-based environments.
+
+The plugin is responsible for:
+
+* Detecting the active workspace
+* Creating a workspace-specific local socket
+* Receiving Architect open requests
+* Validating incoming requests
+* Opening `LATEST_RESPONSE.md`
+* Returning structured success or failure responses
+* Cleaning up the socket during shutdown
+
+The JetBrains plugin has its own build lifecycle because it is built using the IntelliJ Platform toolchain rather than the root TypeScript build.
+
+The plugin distribution is generated under:
+
+```text
+integrations/jetbrains/build/distributions/
+```
+
+---
+
+## 9. Protocol Design Principles
+
+The IDE protocol should remain:
+
+### Local
+
+Communication is intended to occur on the developer’s machine.
+
+### Workspace-aware
+
+Requests must resolve to the intended repository and IDE workspace.
+
+### Narrow
+
+The current operation is opening a generated response artifact.
+
+### Explicit
+
+Requests and responses should be structured rather than inferred from arbitrary text.
+
+### Validated
+
+The receiving integration should validate incoming requests before acting.
+
+### Observable
+
+Failures should be diagnosable from CLI and IDE logs.
+
+### Extensible without overbuilding
+
+Future actions may be added deliberately, but the protocol should not begin as a broad remote-control surface.
+
+---
+
+## 10. Security and Trust Boundaries
+
+Architect handles repository information and may send selected repository evidence to an external model provider.
+
+The main security concerns are:
+
+* What files are collected
+* What content crosses the model boundary
+* Where generated artifacts are written
+* Which local process receives IDE requests
+* Whether a request can escape the intended workspace
+* Whether secrets can enter the crawl corpus
+* Whether generated output can be mistaken for source
+
+## 10.1 Repository Content
+
+The crawler must enforce explicit boundaries.
+
+Sensitive files should be excluded through crawler rules and repository configuration where appropriate.
+
+Examples include:
+
+* Environment files
+* Credentials
+* Private keys
+* Tokens
+* Local secrets
+* Generated dependency content
+* Unrelated filesystem content
+
+## 10.2 Model Boundary
+
+Only the bounded crawl corpus should be supplied to compression.
+
+The compression stage should not silently expand the scope of information collection.
+
+The model should be instructed to use repository evidence and avoid unsupported invention.
+
+## 10.3 IDE Socket
+
+The IDE socket is local and workspace-specific.
+
+The receiving integration should validate the workspace and target path before opening the artifact.
+
+A future hardening pass should consider additional protections such as:
+
+* Stronger workspace-path validation
+* Socket ownership checks
+* Request framing
+* Explicit protocol versioning
+* Better stale-socket handling
+* More detailed error codes
+
+## 10.4 Path Validation
+
+The IDE integration must not blindly open arbitrary paths supplied by an untrusted request.
+
+The intended target is the generated response artifact within the current workspace.
+
+Path validation should prevent accidental or malicious traversal outside the expected workspace boundary.
+
+---
+
+## 11. Failure Model
+
+Architect has several independent failure domains.
+
+```text
+Crawl failure
+    ↓
+Compression failure
+    ↓
+Chat failure
+    ↓
+Artifact write failure
+    ↓
+IDE discovery failure
+    ↓
+IDE connection failure
+    ↓
+IDE open failure
+```
+
+These failures should remain distinguishable.
+
+## 11.1 Crawl Failures
+
+Possible causes:
+
+* Invalid workspace
+* Permission errors
+* Unsupported files
+* Excessive corpus size
+* Filesystem traversal errors
+* Invalid configuration
+
+The crawler should report the affected stage and avoid presenting incomplete output as a successful crawl.
+
+## 11.2 Compression Failures
+
+Possible causes:
+
+* Missing API key
+* Provider error
+* Network failure
+* Invalid model response
+* Context-size failure
+* Malformed output
+
+A failed compression operation should not silently overwrite a valid existing project summary with invalid content.
+
+## 11.3 Chat Failures
+
+Possible causes:
+
+* Missing project context
+* Missing API key
+* Provider error
+* Invalid response
+* Artifact write failure
+
+The chat layer should make clear whether the failure occurred during model reasoning or while writing the response artifact.
+
+## 11.4 IDE Failures
+
+Possible causes:
+
+* IDE not running
+* Integration not installed
+* Socket not created
+* Stale socket
+* Workspace mismatch
+* Invalid request
+* IDE-side file-open failure
+
+The CLI should report actionable diagnostics rather than a generic connection error whenever possible.
+
+---
+
+## 12. Build Boundaries
+
+Architect has separate build domains.
+
+## 12.1 Root CLI
+
+The root project is a TypeScript application.
+
+Typical commands are:
+
+```bash
+npm install
+npm run build
+npm run dev
+```
+
+The compiled CLI is emitted under:
+
+```text
+dist/
+```
+
+## 12.2 VS Code/Cursor Integration
+
+The VS Code/Cursor integration has its own package and build configuration under:
+
+```text
+integrations/vscode/
+```
+
+Its build and packaging commands are defined by that integration’s package configuration.
+
+The root CLI build should not be assumed to build or package the VS Code/Cursor integration automatically.
+
+## 12.3 JetBrains Integration
+
+The JetBrains plugin has its own Gradle-based build.
+
+From the plugin directory:
+
+```bash
+./gradlew buildPlugin
+```
+
+The resulting distribution is written under:
+
+```text
+integrations/jetbrains/build/distributions/
+```
+
+The root TypeScript build and JetBrains plugin build are separate concerns.
+
+---
+
+## 13. Generated Output and Repository Hygiene
+
+Generated artifacts are not source code.
+
+The following files are generated:
+
+```text
+architect-raw-crawl.txt
+project-summary.md
+LATEST_RESPONSE.md
+```
+
+They should be excluded from:
+
+* Future crawls
+* Normal source review
+* Version control
+* Architectural source-of-truth claims
+
+Development and build output should also remain excluded where appropriate:
+
+```text
+dist/
+integrations/jetbrains/build/
+*.vsix
+.idea/
+```
+
+The repository’s `.gitignore` is the operational source of truth for exclusion behavior.
+
+---
+
+## 14. Current Architectural Invariants
+
+The following invariants should remain true unless deliberately changed.
+
+### Invariant 1: Crawling is bounded
+
+Architect must not silently become an unrestricted repository ingestion system.
+
+### Invariant 2: Compression is evidence-based
+
+The compression stage must preserve repository-supported facts and avoid unsupported invention.
+
+### Invariant 3: Project context is reusable
+
+The chat layer should be able to reason over generated project context without recrawling for every request.
+
+### Invariant 4: Generated artifacts are explicit
+
+Raw evidence, compressed context, and latest responses are separate artifacts with separate purposes.
+
+### Invariant 5: IDE handoff is narrow
+
+The current IDE protocol opens a generated artifact. It is not general-purpose remote execution.
+
+### Invariant 6: Workspace identity matters
+
+IDE requests must be routed to the correct workspace-specific integration.
+
+### Invariant 7: Integrations live with the system
+
+The integrated repository is the canonical source for IDE integration changes.
+
+### Invariant 8: Failures remain diagnosable
+
+Crawl, compression, chat, artifact, socket, and IDE failures should not collapse into indistinguishable errors.
+
+---
+
+## 15. Current Repository Layout
+
+```text
+architect/
+├── index.ts
+├── lib/
+│   ├── chat.ts
+│   ├── compress.ts
+│   ├── config.ts
+│   ├── crawl.ts
+│   └── open.ts
+├── integrations/
+│   ├── vscode/
+│   └── jetbrains/
+├── docs/
+├── dist/
+├── package.json
+├── package-lock.json
+├── tsconfig.json
+├── README.md
+└── ARCHITECTURE.md
+```
+
+This layout reflects the current separation between:
+
+* Root CLI behavior
+* Repository processing
+* Model interaction
+* Generated artifacts
+* IDE integrations
+* Documentation
+* Build output
+
+---
+
+## 16. Future Evolution
+
+Potential future work should build on the current boundaries rather than bypassing them.
+
+Likely areas include:
+
+### Protocol hardening
+
+* Explicit protocol version
+* Request identifiers
+* Structured error codes
+* Better stale-socket recovery
+* Stronger path validation
+* Integration health checks
+
+### Cross-IDE fixtures
+
+* Shared request fixtures
+* Shared response fixtures
+* Workspace identity tests
+* Invalid-request tests
+* Socket lifecycle tests
+* Cross-platform behavior tests
+
+### Observability
+
+* Crawl statistics
+* Corpus size reporting
+* Compression timing
+* Model request diagnostics
+* Artifact lifecycle logging
+* IDE handoff diagnostics
+
+### Context quality
+
+* Better architectural extraction
+* More explicit uncertainty handling
+* Improved repository relationship preservation
+* Better handling of monorepos
+* More precise generated-file exclusion
+* Optional incremental crawling
+
+### Integration expansion
+
+* Additional IDE adapters
+* More reliable active-workspace detection
+* IDE-side status reporting
+* Controlled future actions beyond opening Markdown
+
+Any expansion should preserve the principle that new authority is introduced deliberately and through explicit contracts.
+
+---
+
+## 17. Summary
+
+Architect is organized as a controlled pipeline:
+
+```text
+Bounded evidence
+    ↓
+Semantic architectural context
+    ↓
+Interactive reasoning
+    ↓
+Persistent response artifact
+    ↓
+Workspace-aware IDE handoff
+```
+
+The architecture is intentionally conservative.
+
+The crawler controls what information enters the system.
+
+The compression layer turns that information into reusable architectural knowledge.
+
+The chat layer reasons over the generated context.
+
+The artifact layer makes results persistent.
+
+The IDE layer provides a narrow local handoff.
+
+The long-term direction is not to make Architect an unrestricted agent. It is to make repository understanding, reasoning, and developer-tool integration more reliable through explicit boundaries, observable artifacts, and small testable contracts.
