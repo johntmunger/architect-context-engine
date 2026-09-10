@@ -1,0 +1,15 @@
+<idea-plugin>
+    <id>com.architect.ide.jetbrains</id>
+    <name>Architect IDE</name>
+    <vendor>Architect</vendor>
+
+    <description>
+        Opens the latest Architect response directly inside JetBrains IDEs.
+    </description>
+
+    <depends>com.intellij.modules.platform</depends>
+
+    <extensions defaultExtensionNs="com.intellij">
+        <postStartupActivity implementation="com.architect.ide.ArchitectStartupActivity"/>
+    </extensions>
+</idea-plugin>

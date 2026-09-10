@@ -6,3 +6,6 @@ architect-raw-crawl.txt
 project-summary.md
 project-summary-*.md
 LATEST_RESPONSE.md
+.idea/
+integrations/jetbrains/build/
+*.vsix

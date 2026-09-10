@@ -1,0 +1,27 @@
+{
+  "name": "architect-ide-vscode",
+  "displayName": "Architect IDE",
+  "description": "IDE bridge for opening Architect responses in the active VS Code-compatible editor.",
+  "version": "0.1.0",
+  "publisher": "architect",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Other"
+  ],
+  "activationEvents": [
+    "onStartupFinished"
+  ],
+  "main": "./dist/extension.js",
+  "scripts": {
+    "compile": "tsc",
+    "watch": "tsc --watch"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "@types/vscode": "^1.85.0",
+    "@vscode/vsce": "^3.9.2",
+    "typescript": "^5.0.0"
+  }
+}
