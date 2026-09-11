@@ -39,6 +39,7 @@ const IGNORE_FILES = new Set([
   ".DS_Store",
   "architect-raw-crawl.txt",
   "project-summary.md",
+  "LATEST_RESPONSE.md",
 ]);
 
 function walkDirectory(dir: string, root: string): string[] {
