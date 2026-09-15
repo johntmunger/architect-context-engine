@@ -2,9 +2,12 @@ import fs from "fs";
 import net from "net";
 import crypto from "crypto";
 import { execFile } from "child_process";
-import { LATEST_RESPONSE_PATH } from "./path";
+import { ARCHITECT_PATHS } from "./path";
 
 const SOCKET_DIR = `${process.env.HOME}/.architect`;
+
+const LATEST_RESPONSE_PATH =
+  ARCHITECT_PATHS.state.latestResponse;
 
 function getSocketPath(workspacePath: string): string {
   const hash = crypto

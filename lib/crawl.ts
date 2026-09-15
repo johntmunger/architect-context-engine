@@ -2,7 +2,13 @@ import { compressProject } from "./compress";
 import fs from "fs";
 import path from "path";
 
-import { TARGET_ROOT, RAW_CORPUS_PATH, PROJECT_SUMMARY_PATH } from "./path";
+import { ARCHITECT_PATHS, TARGET_PATHS } from "./path";
+
+const TARGET_ROOT = TARGET_PATHS.root;
+
+const RAW_CORPUS_PATH = ARCHITECT_PATHS.state.rawCrawl;
+
+const PROJECT_SUMMARY_PATH = ARCHITECT_PATHS.state.projectSummary;
 
 export type CrawledFile = {
   path: string;
@@ -18,6 +24,16 @@ const IGNORE_DIRS = new Set([
   ".cache",
 ]);
 
+const MAX_FILE_SIZE = 250_000;
+const MAX_DIRECTORY_CONTENT_SIZE = 100_000;
+
+const IGNORE_FILES = new Set([
+  ".DS_Store",
+  "architect-raw-crawl.txt",
+  "project-summary.md",
+  "LATEST_RESPONSE.md",
+]);
+
 const TEXT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
@@ -30,16 +46,6 @@ const TEXT_EXTENSIONS = new Set([
   ".toml",
   ".css",
   ".html",
-]);
-
-const MAX_FILE_SIZE = 250_000;
-const MAX_DIRECTORY_CONTENT_SIZE = 100_000;
-
-const IGNORE_FILES = new Set([
-  ".DS_Store",
-  "architect-raw-crawl.txt",
-  "project-summary.md",
-  "LATEST_RESPONSE.md",
 ]);
 
 function walkDirectory(dir: string, root: string): string[] {

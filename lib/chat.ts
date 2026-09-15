@@ -3,12 +3,17 @@ import path from "path";
 import readline from "readline";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
-
-import { PROJECT_SUMMARY_PATH, LATEST_RESPONSE_PATH } from "./path";
+import { ARCHITECT_PATHS } from "./path";
 
 const anthropic = new Anthropic({
   apiKey: ANTHROPIC_API_KEY,
 });
+
+const PROJECT_SUMMARY_PATH =
+  ARCHITECT_PATHS.state.projectSummary;
+
+const LATEST_RESPONSE_PATH =
+  ARCHITECT_PATHS.state.latestResponse;
 
 const HEARTBEAT_INTERVAL = 4.5 * 60 * 1000;
 
@@ -69,7 +74,9 @@ export async function runChat() {
         }
       } catch {
         if (active) {
-          console.log("\n⚠️ Heartbeat failed · Cache may need to be rebuilt");
+          console.log(
+            "\n⚠️ Heartbeat failed · Cache may need to be rebuilt",
+          );
         }
       }
 
@@ -120,7 +127,8 @@ export async function runChat() {
         });
 
         const textBlock = response.content.find(
-          (block) => block.type === "text",
+          (block): block is Anthropic.Messages.TextBlock =>
+            block.type === "text",
         );
 
         if (!textBlock || textBlock.type !== "text") {
@@ -130,10 +138,13 @@ export async function runChat() {
         fs.writeFileSync(responsePath, textBlock.text);
 
         const uncachedInput = response.usage.input_tokens ?? 0;
-        const cacheCreated = response.usage.cache_creation_input_tokens ?? 0;
-        const cacheRead = response.usage.cache_read_input_tokens ?? 0;
+        const cacheCreated =
+          response.usage.cache_creation_input_tokens ?? 0;
+        const cacheRead =
+          response.usage.cache_read_input_tokens ?? 0;
 
-        const totalInput = uncachedInput + cacheCreated + cacheRead;
+        const totalInput =
+          uncachedInput + cacheCreated + cacheRead;
 
         if (cacheRead > 0) {
           const cacheHitRate =
@@ -142,7 +153,9 @@ export async function runChat() {
               : "0.0";
 
           console.log("\n💎 PROMPT CACHE HIT");
-          console.log(`💾 Cache read: ${cacheRead.toLocaleString()} tokens`);
+          console.log(
+            `💾 Cache read: ${cacheRead.toLocaleString()} tokens`,
+          );
           console.log(`📊 Cache hit rate: ${cacheHitRate}%`);
         } else if (cacheCreated > 0) {
           console.log("\n🆕 PROMPT CACHE CREATED");
@@ -156,6 +169,7 @@ export async function runChat() {
         console.log(
           `📥 Uncached input: ${uncachedInput.toLocaleString()} tokens`,
         );
+
         console.log(
           `📤 Output: ${response.usage.output_tokens.toLocaleString()} tokens`,
         );
