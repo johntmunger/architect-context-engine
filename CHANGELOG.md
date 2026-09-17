@@ -9,6 +9,14 @@ developer workflow, diagnostics, and user experience.
 
 ### Added
 
+- Added a shared `lib/chatBootstrap.ts` command entry point for:
+  - `chat`
+  - `crawl`
+  - `open`
+- Added environment loading to the CLI commands through `dotenv-cli`.
+
+### Added
+
 - Established the initial `/docs` documentation structure.
 - Added architecture documentation placeholders for:
   - System architecture

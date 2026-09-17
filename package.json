@@ -9,7 +9,10 @@
   "scripts": {
     "build": "tsc && chmod +x dist/index.js",
     "dev": "tsx index.ts",
-    "test": "echo \"No tests configured\""
+    "test": "echo \"No tests configured\"",
+    "chat": "dotenv -e .env -- tsx lib/chatBootstrap.ts chat",
+    "crawl": "dotenv -e .env -- tsx lib/chatBootstrap.ts crawl",
+    "open": "dotenv -e .env -- tsx lib/chatBootstrap.ts open"
   },
   "keywords": [],
   "author": "",
@@ -21,6 +24,7 @@
   },
   "devDependencies": {
     "@types/node": "^26.4.0",
+    "dotenv-cli": "^11.0.0",
     "tsx": "^4.23.12",
     "typescript": "^7.0.2"
   }
