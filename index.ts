@@ -1,36 +1,31 @@
 #!/usr/bin/env node
 
-import { runCrawl } from "./lib/crawl";
-import { runChat } from "./lib/chat";
-import { openLatestResponse } from "./lib/open";
+import { BootstrapCommand, runBootstrap } from "./lib/chatBootstrap";
 import { runPathsCheck } from "./lib/pathsCheck";
 
-const action = process.argv[2];
+const action = process.argv[2] as BootstrapCommand | "paths" | undefined;
 
 async function main() {
   switch (action) {
-    case "crawl":
-      console.log("Running crawl...");
-      await runCrawl();
-      break;
-
-    case "chat":
-      console.log("Running chat...");
-      await runChat();
-      break;
-
-    case "open":
-      console.log("Opening latest response...");
-      openLatestResponse();
-      break;
-
     case "paths":
       runPathsCheck();
       break;
 
+    case "crawl":
+    case "chat":
+    case "open":
+    case "context":
+      await runBootstrap(action);
+      break;
+
     default:
-      console.log("Usage: architect [crawl | chat | open | paths]");
+      throw new Error(
+        "Usage: architect [crawl | chat | open | context | paths]",
+      );
   }
 }
 
-main();
+main().catch((error: unknown) => {
+  console.error(error);
+  process.exitCode = 1;
+});
