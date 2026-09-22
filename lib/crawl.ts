@@ -12,7 +12,7 @@ export type CrawledFile = {
   content: string;
 };
 
-const IGNORE_DIRS = new Set([
+export const IGNORE_DIRS = new Set([
   "node_modules",
   ".git",
   ".next",
@@ -24,14 +24,14 @@ const IGNORE_DIRS = new Set([
 const MAX_FILE_SIZE = 250_000;
 const MAX_DIRECTORY_CONTENT_SIZE = 100_000;
 
-const IGNORE_FILES = new Set([
+export const IGNORE_FILES = new Set([
   ".DS_Store",
   "architect-raw-crawl.txt",
   "project-summary.md",
   "LATEST_RESPONSE.md",
 ]);
 
-const TEXT_EXTENSIONS = new Set([
+export const TEXT_EXTENSIONS = new Set([
   ".ts",
   ".tsx",
   ".js",

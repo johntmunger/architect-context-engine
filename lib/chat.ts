@@ -4,6 +4,7 @@ import readline from "readline";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
 import { ARCHITECT_PATHS } from "./path";
+import { searchRepository } from "./tools/searchRepository";
 
 const anthropic = new Anthropic({
   apiKey: ANTHROPIC_API_KEY,
@@ -14,6 +15,88 @@ const PROJECT_SUMMARY_PATH = ARCHITECT_PATHS.state.projectSummary;
 const LATEST_RESPONSE_PATH = ARCHITECT_PATHS.state.latestResponse;
 
 const HEARTBEAT_INTERVAL = 4.5 * 60 * 1000;
+
+const tools: Anthropic.Messages.Tool[] = [
+  {
+    name: "search_repository",
+    description:
+      "Search the current target repository for an exact text query and return matching file paths, line ranges, and content.",
+    input_schema: {
+      type: "object",
+      properties: {
+        query: {
+          type: "string",
+          description: "The exact text to search for in repository files.",
+        },
+      },
+      required: ["query"],
+    },
+  },
+];
+
+async function requestChatResponse(
+  system: Anthropic.Messages.MessageCreateParams["system"],
+  prompt: string,
+): Promise<Anthropic.Messages.Message> {
+  const messages: Anthropic.Messages.MessageParam[] = [
+    {
+      role: "user",
+      content: prompt,
+    },
+  ];
+
+  while (true) {
+    const response = await anthropic.messages.create({
+      model: "claude-sonnet-4-6",
+      max_tokens: 4000,
+      system,
+      tools,
+      messages,
+    });
+
+    if (response.stop_reason !== "tool_use") {
+      return response;
+    }
+
+    messages.push({ role: "assistant", content: response.content });
+
+    const toolResults: Anthropic.Messages.ToolResultBlockParam[] = [];
+
+    for (const block of response.content) {
+      if (block.type !== "tool_use") continue;
+
+      if (block.name !== "search_repository") {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          is_error: true,
+          content: `Unknown tool: ${block.name}`,
+        });
+        continue;
+      }
+
+      const input = block.input as { query?: unknown };
+
+      if (typeof input.query !== "string") {
+        toolResults.push({
+          type: "tool_result",
+          tool_use_id: block.id,
+          is_error: true,
+          content: "search_repository requires a string query.",
+        });
+        continue;
+      }
+
+      toolResults.push({
+        type: "tool_result",
+        tool_use_id: block.id,
+        content: JSON.stringify(searchRepository(input.query)),
+      });
+    }
+
+    messages.push({ role: "user", content: toolResults });
+  }
+}
 
 export async function runChat() {
   const summaryPath = PROJECT_SUMMARY_PATH;
@@ -110,17 +193,7 @@ export async function runChat() {
       }
 
       try {
-        const response = await anthropic.messages.create({
-          model: "claude-sonnet-4-6",
-          max_tokens: 4000,
-          system: cachedSystem,
-          messages: [
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-        });
+        const response = await requestChatResponse(cachedSystem, prompt);
 
         const textBlock = response.content.find(
           (block): block is Anthropic.Messages.TextBlock =>
