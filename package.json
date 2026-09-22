@@ -12,6 +12,7 @@
     "test": "echo \"No tests configured\"",
     "chat": "dotenv -e .env -- tsx lib/chatBootstrap.ts chat",
     "crawl": "dotenv -e .env -- tsx lib/chatBootstrap.ts crawl",
+    "context": "dotenv -e .env -- tsx lib/chatBootstrap.ts context",
     "open": "dotenv -e .env -- tsx lib/chatBootstrap.ts open"
   },
   "keywords": [],

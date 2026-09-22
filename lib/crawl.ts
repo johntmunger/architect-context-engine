@@ -1,4 +1,3 @@
-import { compressProject } from "./compress";
 import fs from "fs";
 import path from "path";
 
@@ -7,8 +6,6 @@ import { ARCHITECT_PATHS, TARGET_PATHS } from "./path";
 const TARGET_ROOT = TARGET_PATHS.root;
 
 const RAW_CORPUS_PATH = ARCHITECT_PATHS.state.rawCrawl;
-
-const PROJECT_SUMMARY_PATH = ARCHITECT_PATHS.state.projectSummary;
 
 export type CrawledFile = {
   path: string;
@@ -125,7 +122,7 @@ function readCrawledFiles(files: string[], root: string): CrawledFile[] {
   return results;
 }
 
-export async function runCrawl() {
+export async function runCrawl(): Promise<CrawledFile[]> {
   const projectRoot = TARGET_ROOT;
 
   console.log("🔍 Architect Crawl");
@@ -148,14 +145,7 @@ export async function runCrawl() {
   fs.writeFileSync(rawCorpusPath, corpus);
 
   console.log(`📝 Raw corpus written: ${rawCorpusPath}`);
-
-  const semanticSummary = await compressProject(crawledFiles);
-
-  const summaryPath = PROJECT_SUMMARY_PATH;
-
-  fs.writeFileSync(summaryPath, semanticSummary);
-
-  console.log(`🧠 Semantic summary written: ${summaryPath}`);
+  return crawledFiles;
 }
 
 export function formatCorpus(files: CrawledFile[]): string {
