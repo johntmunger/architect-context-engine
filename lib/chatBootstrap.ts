@@ -1,9 +1,7 @@
 import { runChat } from "./chat";
 import { runCrawl } from "./crawl";
-import { compressProject } from "./compress";
+import { runContext } from "./context";
 import { openLatestResponse } from "./open";
-import { ARCHITECT_PATHS } from "./path";
-import fs from "fs";
 
 export type BootstrapCommand = "crawl" | "chat" | "open" | "context";
 
@@ -21,18 +19,9 @@ export async function runBootstrap(command: BootstrapCommand): Promise<void> {
       openLatestResponse();
       break;
 
-    case "context": {
-      const crawledFiles = await runCrawl();
-      const semanticSummary = await compressProject(crawledFiles);
-
-      fs.writeFileSync(ARCHITECT_PATHS.state.projectSummary, semanticSummary);
-
-      console.log(
-        `🧠 Semantic summary written: ${ARCHITECT_PATHS.state.projectSummary}`,
-      );
-
+    case "context":
+      await runContext();
       break;
-    }
   }
 }
 
