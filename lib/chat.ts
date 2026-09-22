@@ -4,6 +4,7 @@ import readline from "readline";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
 import { ARCHITECT_PATHS } from "./path";
+import { gitStatus } from "./tools/gitStatus";
 import { searchRepository } from "./tools/searchRepository";
 
 const anthropic = new Anthropic({
@@ -30,6 +31,15 @@ const tools: Anthropic.Messages.Tool[] = [
         },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "git_status",
+    description:
+      "Get the current Git status of the target repository. This is read-only current workspace evidence.",
+    input_schema: {
+      type: "object",
+      properties: {},
     },
   },
 ];
@@ -66,6 +76,15 @@ async function requestChatResponse(
       if (block.type !== "tool_use") continue;
 
       if (block.name !== "search_repository") {
+        if (block.name === "git_status") {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify(gitStatus()),
+          });
+          continue;
+        }
+
         toolResults.push({
           type: "tool_result",
           tool_use_id: block.id,
