@@ -4,6 +4,7 @@ import readline from "readline";
 import Anthropic from "@anthropic-ai/sdk";
 import { ANTHROPIC_API_KEY } from "./config";
 import { ARCHITECT_PATHS } from "./path";
+import { gitDiff } from "./tools/gitDiff";
 import { gitStatus } from "./tools/gitStatus";
 import { searchRepository } from "./tools/searchRepository";
 
@@ -37,6 +38,15 @@ const tools: Anthropic.Messages.Tool[] = [
     name: "git_status",
     description:
       "Get the current Git status of the target repository. This is read-only current workspace evidence.",
+    input_schema: {
+      type: "object",
+      properties: {},
+    },
+  },
+  {
+    name: "git_diff",
+    description:
+      "Get the current unstaged working-tree diff of the target repository. This is read-only current workspace evidence.",
     input_schema: {
       type: "object",
       properties: {},
@@ -81,6 +91,15 @@ async function requestChatResponse(
             type: "tool_result",
             tool_use_id: block.id,
             content: JSON.stringify(gitStatus()),
+          });
+          continue;
+        }
+
+        if (block.name === "git_diff") {
+          toolResults.push({
+            type: "tool_result",
+            tool_use_id: block.id,
+            content: JSON.stringify(gitDiff()),
           });
           continue;
         }
